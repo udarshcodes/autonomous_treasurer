@@ -1,0 +1,63 @@
+# Render Blueprint — owner: Dev 1. One Postgres, API (also receives webhooks), web app, nightly cron.
+databases:
+  - name: treasurer-db
+    plan: basic-256mb
+    databaseName: treasurer
+    user: treasurer
+
+services:
+  - type: web
+    name: treasurer-api
+    runtime: node
+    plan: starter
+    buildCommand: npm ci
+    preDeployCommand: npm run db:migrate
+    startCommand: npm run start --workspace @treasurer/api
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATABASE_URL
+        fromDatabase: { name: treasurer-db, property: connectionString }
+      - key: PAYPAL_ENV
+        value: sandbox
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: PUBLIC_APP_URL
+        sync: false
+      - key: DEMO_MODE
+        value: "true"
+
+  - type: web
+    name: treasurer-web
+    runtime: node
+    plan: starter
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start --workspace @treasurer/web
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NEXT_PUBLIC_API_BASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_PAYPAL_CLIENT_ID
+        sync: false
+
+  - type: cron
+    name: treasurer-nightly-recon
+    runtime: node
+    schedule: "30 2 * * *"
+    buildCommand: npm ci
+    startCommand: npm run start --workspace @treasurer/worker -- recon
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase: { name: treasurer-db, property: connectionString }
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
