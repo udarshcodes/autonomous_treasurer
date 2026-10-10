@@ -1,0 +1,11 @@
+{
+  "name": "@treasurer/llm",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.133.0",
+    "zod": "^4.6.5"
+  }
+}
