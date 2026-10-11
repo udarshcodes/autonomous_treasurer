@@ -1,0 +1,59 @@
+:root {
+  --bg: #f7f7f5;
+  --surface: #ffffff;
+  --text: #1c1c1a;
+  --muted: #6b6b66;
+  --border: #e3e3de;
+  --accent: #1f5fbf;
+  --accent-text: #ffffff;
+  --ok: #1e7a46;
+  --bad: #b3261e;
+  --radius: 10px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141413;
+    --surface: #1e1e1c;
+    --text: #ececea;
+    --muted: #a3a39d;
+    --border: #33332f;
+    --accent: #6ea2f0;
+    --accent-text: #0b1220;
+    --ok: #5fc58a;
+    --bad: #f08a83;
+  }
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+main { max-width: 560px; margin: 0 auto; padding: 32px 16px 64px; }
+h1 { font-size: 1.6rem; margin: 0 0 4px; }
+h2 { font-size: 1.1rem; margin: 28px 0 8px; }
+p.muted, .muted { color: var(--muted); }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin: 16px 0; }
+label { display: block; font-weight: 600; font-size: 0.9rem; margin: 14px 0 4px; }
+input, select, textarea {
+  width: 100%; padding: 10px 12px; font: inherit; color: var(--text);
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+}
+button, .button {
+  display: inline-block; padding: 10px 16px; font: inherit; font-weight: 600; border: 0; border-radius: 8px;
+  background: var(--accent); color: var(--accent-text); cursor: pointer; text-decoration: none;
+}
+button.secondary { background: transparent; color: var(--accent); border: 1px solid var(--border); }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+.row { display: flex; gap: 8px; align-items: end; }
+.row > * { flex: 1; }
+.amount { font-size: 2rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.error { color: var(--bad); }
+.ok { color: var(--ok); }
+ul.plain { list-style: none; padding: 0; margin: 0; }
+ul.plain li { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); }
+ul.plain li:last-child { border-bottom: 0; }
+code.link { word-break: break-all; font-size: 0.85rem; }

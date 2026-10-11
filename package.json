@@ -1,0 +1,33 @@
+{
+  "name": "autonomous-treasurer",
+  "private": true,
+  "description": "AI treasurer for student clubs and community events, with PayPal as the execution layer for every money movement.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @treasurer/api & npm run dev --workspace @treasurer/web",
+    "dev:api": "npm run dev --workspace @treasurer/api",
+    "dev:web": "npm run dev --workspace @treasurer/web",
+    "dev:worker": "npm run dev --workspace @treasurer/worker",
+    "build": "npm run build --workspace @treasurer/web",
+    "typecheck": "tsc -p tsconfig.json --noEmit && npm run typecheck --workspace @treasurer/web",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:generate": "npm run generate --workspace @treasurer/db",
+    "db:migrate": "npm run migrate --workspace @treasurer/db",
+    "seed": "tsx packages/recon/src/seed/cli.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.3"
+  }
+}

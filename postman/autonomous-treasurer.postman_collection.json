@@ -1,0 +1,684 @@
+{
+  "info": {
+    "_postman_id": "d57ac789-4c75-4ea1-b92e-ff8607da7d39",
+    "name": "Autonomous Treasurer",
+    "description": "Walks judges and developers through the Autonomous Treasurer API against the PayPal sandbox.\n\n1. Import this collection and `autonomous-treasurer.postman_environment.json`.\n2. Set `baseUrl` (local: http://localhost:4000, hosted: the Render API URL).\n3. Run the folders in order. Each request saves the ids the next one needs.\n\nStaff endpoints under /api run in DEMO_MODE without login. Send `x-demo-role` to act as another approver.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:4000"
+    },
+    {
+      "key": "eventSlug",
+      "value": "hackfest"
+    },
+    {
+      "key": "eventId",
+      "value": "evt_demo"
+    },
+    {
+      "key": "prizeBudgetLineId",
+      "value": "bl_prizes"
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Health",
+      "item": [
+        {
+          "name": "Health check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1. Registration and team payments (C1)",
+      "description": "Public endpoints behind /e/:slug/register and /e/:slug/pay/:token. No login.",
+      "item": [
+        {
+          "name": "Get public event",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/public/events/{{eventSlug}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "public",
+                "events",
+                "{{eventSlug}}"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register a team (split payment)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/public/events/{{eventSlug}}/registrations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "public",
+                "events",
+                "{{eventSlug}}",
+                "registrations"
+              ]
+            },
+            "description": "Creates the team and one personal pay link per member. Shares are split in exact cents.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"teamName\": \"Postman Pioneers\",\n  \"payMode\": \"split\",\n  \"members\": [\n    {\n      \"name\": \"Asha Rao\",\n      \"email\": \"asha.postman@example.edu\"\n    },\n    {\n      \"name\": \"Ben Ortiz\",\n      \"email\": \"ben.postman@example.edu\"\n    },\n    {\n      \"name\": \"Chen Wei\",\n      \"email\": \"chen.postman@example.edu\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 201\", () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('leadPayToken', body.leadPayToken);",
+                  "pm.collectionVariables.set('memberPayToken', body.members[1].payLink.split('/').pop());",
+                  "pm.test('shares add up to the fee', () => pm.expect(body.members.reduce((s, m) => s + m.shareCents, 0)).to.eql(body.feeCents));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "What does this member owe?",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/public/pay/{{memberPayToken}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "public",
+                "pay",
+                "{{memberPayToken}}"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create PayPal order (lead pays for the team)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/public/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "public",
+                "orders"
+              ]
+            },
+            "description": "Creates a PayPal Orders v2 order with custom_id = reg:<registrationId>. Open the approve link from PayPal's response in a browser with a sandbox personal account, then run Capture.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{leadPayToken}}\",\n  \"scope\": \"team\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('orderId', pm.response.json().orderId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Capture order after buyer approval",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/public/orders/{{orderId}}/capture",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "public",
+                "orders",
+                "{{orderId}}",
+                "capture"
+              ]
+            },
+            "description": "Captures the approved order and writes a ledger entry. Idempotent: the PayPal webhook records the same capture without double counting.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('captured or processing', () => pm.expect(pm.response.code).to.be.oneOf([200, 202]));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Volunteer receipt upload (C3 entry)",
+      "item": [
+        {
+          "name": "Upload a receipt",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/public/events/{{eventSlug}}/receipts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "public",
+                "events",
+                "{{eventSlug}}",
+                "receipts"
+              ]
+            },
+            "description": "Choose an image in the `receipt` field. Uploading the same file twice returns 409 (duplicate guard).",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Priya Shah",
+                  "type": "text"
+                },
+                {
+                  "key": "email",
+                  "value": "priya@example.edu",
+                  "type": "text"
+                },
+                {
+                  "key": "note",
+                  "value": "Pizza for the volunteer dinner",
+                  "type": "text"
+                },
+                {
+                  "key": "receipt",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('accepted or duplicate', () => pm.expect(pm.response.code).to.be.oneOf([201, 409]));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Nudges for unpaid teammates (C1)",
+      "item": [
+        {
+          "name": "Scan and draft nudges",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/{{eventId}}/nudges/scan",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "events",
+                "{{eventId}}",
+                "nudges",
+                "scan"
+              ]
+            },
+            "description": "Finds partially paid teams and drafts one message per unpaid member. Every figure and link in the text is inserted by code. Tone escalates with each nudge sent.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deadline\": \"Friday 17 October\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().drafts; if (d.length) pm.collectionVariables.set('messageId', d[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Mark a nudge as sent",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/messages/{{messageId}}/send",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "messages",
+                "{{messageId}}",
+                "send"
+              ]
+            },
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Scan again (dry run): cooldown applies",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/{{eventId}}/nudges/scan",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "events",
+                "{{eventId}}",
+                "nudges",
+                "scan"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dryRun\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Prize payouts (C5)",
+      "item": [
+        {
+          "name": "Preview a list with mistakes",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/{{eventId}}/prizes/preview",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "events",
+                "{{eventId}}",
+                "prizes",
+                "preview"
+              ]
+            },
+            "description": "Typo'd team name (suggests the right one but does not apply it), amount that disagrees with the prize table, and a recipient who is not on the team.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"budgetLineId\": \"{{prizeBudgetLineId}}\",\n  \"text\": \"place,team,amount,email\\n1,Null Pointer,1000,\\n2,Byte Me,600,\\n3,Stack Smashers,250,mallory@evil.test\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test('has errors', () => pm.expect(pm.response.json().preview.ok).to.be.false);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Preview a clean list",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/{{eventId}}/prizes/preview",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "events",
+                "{{eventId}}",
+                "prizes",
+                "preview"
+              ]
+            },
+            "description": "Returns the exact PayPal Payouts body (EMAIL recipients, purpose PRIZES, deterministic sender_batch_id).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"budgetLineId\": \"{{prizeBudgetLineId}}\",\n  \"splitMode\": \"equal\",\n  \"text\": \"place,team,amount\\n1,Null Pointers,1000\\n2,Byte Me,500\\n3,Stack Smashers,250\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Propose the batch",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/{{eventId}}/prizes/propose",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "events",
+                "{{eventId}}",
+                "prizes",
+                "propose"
+              ]
+            },
+            "description": "Creates a SpendRequest for the policy engine. Sending the same list again returns the existing request (idempotent).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"budgetLineId\": \"{{prizeBudgetLineId}}\",\n  \"splitMode\": \"equal\",\n  \"text\": \"place,team,amount\\n1,Null Pointers,1000\\n2,Byte Me,500\\n3,Stack Smashers,250\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created or duplicate', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
+                  "pm.collectionVariables.set('spendRequestId', pm.response.json().spendRequestId);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Approval card (C4)",
+      "item": [
+        {
+          "name": "Explain a spend request",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/spend-requests/{{spendRequestId}}/explain",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "spend-requests",
+                "{{spendRequestId}}",
+                "explain"
+              ]
+            },
+            "description": "Builds the approval card once the policy engine has decided. Returns 409 until then."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('card or not yet evaluated', () => pm.expect(pm.response.code).to.be.oneOf([200, 409]));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6. PayPal webhooks",
+      "item": [
+        {
+          "name": "Simulated webhook",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/webhooks/paypal",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhooks",
+                "paypal"
+              ]
+            },
+            "description": "Stored raw and processed idempotently by event id. Send twice: the second reply says duplicate.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"WH-POSTMAN-1\",\n  \"event_type\": \"PAYMENT.CAPTURE.COMPLETED\",\n  \"resource\": {\n    \"id\": \"CAPTURE-ID\",\n    \"custom_id\": \"reg:...\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

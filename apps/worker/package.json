@@ -1,0 +1,17 @@
+{
+  "name": "@treasurer/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx --env-file-if-exists=../../.env src/index.ts",
+    "start": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@treasurer/comms": "*",
+    "@treasurer/db": "*",
+    "@treasurer/paypal": "*",
+    "@treasurer/recon": "*",
+    "@treasurer/shared": "*"
+  }
+}
