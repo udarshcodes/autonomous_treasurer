@@ -1,0 +1,19 @@
+# Policy for the demo event (300-participant hackathon). Owner: AI 3.
+# Amounts are whole USD for readability; the loader converts to cents.
+currency: USD
+
+approval_tiers:
+  - max: 50            # auto-approve
+    approvers: []
+  - max: 500
+    approvers: [treasurer]
+  - max: 2000
+    approvers: [treasurer, faculty_advisor]
+
+per_transaction_cap: 2000
+daily_auto_approve_cap: 300
+
+recipients:
+  allow: [registered_volunteers, allowlisted_vendors, confirmed_winners, registrants]
+
+duplicate_window_days: 30

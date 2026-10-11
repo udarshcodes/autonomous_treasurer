@@ -1,0 +1,13 @@
+# Optional: real Postgres for local dev. Without it the app uses embedded PGlite.
+# docker compose up -d && export DATABASE_URL=postgres://treasurer:treasurer@localhost:5432/treasurer
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: treasurer
+      POSTGRES_PASSWORD: treasurer
+      POSTGRES_DB: treasurer
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+volumes:
+  pgdata:
