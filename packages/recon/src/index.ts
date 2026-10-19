@@ -364,3 +364,13 @@ export type {
   ReconciliationExplanation,
   UnmatchedReconItem,
 } from "./explainer";
+
+export {
+  nightlyCrossCheck,
+  nightlyCrossCheckWithDb,
+} from "./nightly";
+
+export type {
+  NightlyCrossCheckReport,
+  ReconDateWindow,
+} from "./nightly";
