@@ -357,3 +357,10 @@ export type {
   BudgetReport,
   BudgetReportOptions,
 } from "./budget";
+
+export { explainUnmatched } from "./explainer";
+
+export type {
+  ReconciliationExplanation,
+  UnmatchedReconItem,
+} from "./explainer";
