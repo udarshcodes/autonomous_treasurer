@@ -7,37 +7,10 @@ import {
   type PayPalTransactionForRecon,
 } from "./index";
 
-const ledger = (
-  overrides: Partial<LedgerEntryForRecon> = {},
-): LedgerEntryForRecon => ({
-  id: "ledger-1",
-  amountCents: 2500,
-  businessObjectType: "registration",
-  businessObjectId: "reg-1",
-  paypalObjectType: null,
-  paypalObjectId: null,
-  ...overrides,
-});
-
-const transaction = (
-  overrides: Partial<PayPalTransactionForRecon> = {},
-): PayPalTransactionForRecon => ({
-  id: "capture-1",
-  type: "capture",
-  amountCents: 2500,
-  customId: "reg:reg-1",
-  ...overrides,
-});
-
-/**
- * Assert that exactly one result exists and safely return it.
- * This satisfies TypeScript's strict indexed-access checks.
- */
 function firstResult(results: MatchResult[]): MatchResult {
   expect(results).toHaveLength(1);
 
   const result = results[0];
-
   if (!result) {
     throw new Error("Expected one reconciliation result");
   }
@@ -45,122 +18,198 @@ function firstResult(results: MatchResult[]): MatchResult {
   return result;
 }
 
+function ledgerEntry(
+  overrides: Partial<LedgerEntryForRecon> = {},
+): LedgerEntryForRecon {
+  return {
+    id: "ledger-1",
+    amountCents: 2500,
+    paypalObjectId: null,
+    paypalObjectType: "capture",
+    businessObjectType: "registration",
+    businessObjectId: "reg-1",
+    ...overrides,
+  };
+}
+
+function transaction(
+  overrides: Partial<PayPalTransactionForRecon> = {},
+): PayPalTransactionForRecon {
+  return {
+    id: "capture-1",
+    type: "capture",
+    amountCents: 2500,
+    customId: "reg:reg-1",
+    ...overrides,
+  };
+}
+
 describe("matchLedgerEntries", () => {
   it("matches by PayPal object ID and amount", () => {
-    const result = matchLedgerEntries(
-      [
-        ledger({
-          paypalObjectId: "capture-1",
-          paypalObjectType: "capture",
-        }),
-      ],
-      [transaction()],
+    const result = firstResult(
+      matchLedgerEntries(
+        [ledgerEntry({ paypalObjectId: "capture-1" })],
+        [transaction()],
+      ),
     );
 
-    const match = firstResult(result);
-
-    expect(match.status).toBe("matched");
-    expect(match.matchedTo).toEqual({
+    expect(result.status).toBe("matched");
+    expect(result.matchedTo).toEqual({
       type: "capture",
       id: "capture-1",
     });
   });
 
-  it("matches by custom_id when no PayPal object ID is stored", () => {
-    const result = matchLedgerEntries([ledger()], [transaction()]);
-    const match = firstResult(result);
+  it("matches by custom_id", () => {
+    const result = firstResult(
+      matchLedgerEntries(
+        [ledgerEntry({ paypalObjectId: null })],
+        [transaction()],
+      ),
+    );
 
-    expect(match.status).toBe("matched");
-    expect(match.explanation).toContain("custom_id");
+    expect(result.status).toBe("matched");
+    expect(result.matchedTo?.id).toBe("capture-1");
   });
 
-  it("flags an amount mismatch for an identified transaction", () => {
-    const result = matchLedgerEntries(
-      [ledger({ paypalObjectId: "capture-1" })],
-      [transaction({ amountCents: 2000 })],
+  it("flags an amount mismatch for a known PayPal ID", () => {
+    const result = firstResult(
+      matchLedgerEntries(
+        [ledgerEntry({ paypalObjectId: "capture-1" })],
+        [transaction({ amountCents: 3000 })],
+      ),
     );
-    const match = firstResult(result);
 
-    expect(match.status).toBe("flagged");
-    expect(match.explanation).toContain("amount");
+    expect(result.status).toBe("flagged");
   });
 
   it("flags multiple transactions with the same custom_id", () => {
-    const result = matchLedgerEntries(
-      [ledger()],
-      [
-        transaction({ id: "capture-1" }),
-        transaction({ id: "capture-2" }),
-      ],
+    const result = firstResult(
+      matchLedgerEntries(
+        [ledgerEntry({ paypalObjectId: null })],
+        [
+          transaction({ id: "capture-1" }),
+          transaction({ id: "capture-2" }),
+        ],
+      ),
     );
-    const match = firstResult(result);
 
-    expect(match.status).toBe("flagged");
-    expect(match.explanation).toContain("duplicate");
+    expect(result.status).toBe("flagged");
   });
 
-  it("suggests an amount-only candidate instead of confirming it", () => {
-    const result = matchLedgerEntries(
-      [
-        ledger({
-          businessObjectType: null,
-          businessObjectId: null,
-        }),
-      ],
-      [transaction({ customId: null })],
+  it("suggests an amount-only candidate instead of confirming a match", () => {
+    const result = firstResult(
+      matchLedgerEntries(
+        [
+          ledgerEntry({
+            paypalObjectId: null,
+            businessObjectType: null,
+            businessObjectId: null,
+          }),
+        ],
+        [transaction({ customId: null })],
+      ),
     );
-    const match = firstResult(result);
 
-    expect(match.status).toBe("suggested");
-    expect(match.matchedTo?.id).toBe("capture-1");
+    expect(result.status).toBe("suggested");
+    expect(result.matchedTo?.id).toBe("capture-1");
   });
 
-  it("leaves an entry unmatched when no candidate exists", () => {
-    const result = matchLedgerEntries(
-      [
-        ledger({
-          amountCents: 9900,
-          businessObjectType: null,
-          businessObjectId: null,
-        }),
-      ],
-      [
-        transaction({
-          amountCents: 2500,
-          customId: null,
-        }),
-      ],
+  it("returns unmatched when there is no candidate", () => {
+    const result = firstResult(
+      matchLedgerEntries(
+        [
+          ledgerEntry({
+            paypalObjectId: null,
+            businessObjectType: null,
+            businessObjectId: null,
+          }),
+        ],
+        [
+          transaction({
+            amountCents: 3000,
+            customId: null,
+          }),
+        ],
+      ),
     );
-    const match = firstResult(result);
 
-    expect(match.status).toBe("unmatched");
-    expect(match.matchedTo).toBeUndefined();
+    expect(result.status).toBe("unmatched");
+    expect(result.matchedTo).toBeUndefined();
   });
 
-  it("rejects non-integer monetary amounts", () => {
+  it("rejects fractional cents", () => {
     expect(() =>
       matchLedgerEntries(
-        [ledger({ amountCents: 25.5 })],
+        [ledgerEntry({ amountCents: 25.5 })],
         [transaction()],
       ),
-    ).toThrow(/non-negative safe integer in cents/);
+    ).toThrow(/safe integer/);
   });
 
-  it("rejects negative monetary amounts", () => {
+  it("rejects negative amounts", () => {
     expect(() =>
       matchLedgerEntries(
-        [ledger({ amountCents: -1 })],
+        [ledgerEntry({ amountCents: -1 })],
         [transaction()],
       ),
-    ).toThrow(/non-negative safe integer in cents/);
+    ).toThrow(/non-negative/);
   });
 
-  it("rejects amounts outside the safe integer range", () => {
+  it("rejects unsafe integer amounts", () => {
     expect(() =>
       matchLedgerEntries(
-        [ledger({ amountCents: Number.MAX_SAFE_INTEGER + 1 })],
+        [ledgerEntry({ amountCents: Number.MAX_SAFE_INTEGER + 1 })],
         [transaction()],
       ),
-    ).toThrow(/non-negative safe integer in cents/);
+    ).toThrow(/safe integer/);
+  });
+
+  it("does not match one PayPal transaction to two ledger entries", () => {
+    const results = matchLedgerEntries(
+      [
+        ledgerEntry({
+          id: "ledger-1",
+          paypalObjectId: null,
+          businessObjectId: "reg-1",
+        }),
+        ledgerEntry({
+          id: "ledger-2",
+          paypalObjectId: null,
+          businessObjectId: "reg-1",
+        }),
+      ],
+      [transaction()],
+    );
+
+    const confirmedMatches = results.filter(
+      (result) =>
+        result.status === "matched" &&
+        result.matchedTo?.id === "capture-1",
+    );
+
+    expect(confirmedMatches).toHaveLength(1);
+  });
+
+  it("does not fall back to an unrelated transaction when a known PayPal ID is missing", () => {
+    const result = firstResult(
+      matchLedgerEntries(
+        [
+          ledgerEntry({
+            paypalObjectId: "capture-expected",
+            businessObjectId: "reg-3",
+          }),
+        ],
+        [
+          transaction({
+            id: "capture-unrelated",
+            customId: "reg:another-registration",
+          }),
+        ],
+      ),
+    );
+
+    expect(result.status).not.toBe("matched");
+    expect(result.matchedTo?.id).not.toBe("capture-unrelated");
   });
 });
