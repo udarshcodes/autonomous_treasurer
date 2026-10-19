@@ -346,3 +346,14 @@ export {
   buildClosingStatementWithDb,
 } from "./statement";
 export type { ClosingStatement } from "./statement";
+
+export {
+  buildBudgetReport,
+  buildBudgetReportWithDb,
+} from "./budget";
+
+export type {
+  BudgetLineReport,
+  BudgetReport,
+  BudgetReportOptions,
+} from "./budget";
