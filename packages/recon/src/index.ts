@@ -341,3 +341,8 @@ export async function matchLedger(
   const db = await getDb();
   return matchLedgerWithDb(db, eventId, transactions);
 }
+export {
+  buildClosingStatement,
+  buildClosingStatementWithDb,
+} from "./statement";
+export type { ClosingStatement } from "./statement";
