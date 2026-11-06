@@ -12,11 +12,11 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "node init && npm run dev --workspace @treasurer/api & npm run dev --workspace @treasurer/web",
-    "dev:api": "node init && npm run dev --workspace @treasurer/api",
-    "dev:web": "node init && npm run dev --workspace @treasurer/web",
-    "dev:worker": "node init && npm run dev --workspace @treasurer/worker",
-    "build": "node init && npm run build --workspace @treasurer/web",
+    "dev": "npm run dev --workspace @treasurer/api & npm run dev --workspace @treasurer/web",
+    "dev:api": "npm run dev --workspace @treasurer/api",
+    "dev:web": "npm run dev --workspace @treasurer/web",
+    "dev:worker": "npm run dev --workspace @treasurer/worker",
+    "build": "npm run build --workspace @treasurer/web",
     "typecheck": "tsc -p tsconfig.json --noEmit && npm run typecheck --workspace @treasurer/web",
     "test": "vitest run",
     "test:watch": "vitest",
