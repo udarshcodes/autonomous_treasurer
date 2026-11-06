@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node init && next dev --port 3000",
-    "build": "node init && next build",
-    "start": "node init && next start --port ${PORT:-3000}",
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "start": "next start --port ${PORT:-3000}",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
